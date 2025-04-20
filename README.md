@@ -65,7 +65,7 @@ we construct our digital cityscapes block by block
 
 ## 📜 License
 
-MIT License - Create freely, credit kindly.
+GNU General Public  License - Create freely, credit kindly.
 
 ---
 
