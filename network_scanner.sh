@@ -1,28 +1,35 @@
-#!/usr/env/bin bash
+#!/usr/bin/env bash
 
-# Simple network scanner with tree-like visualization
+# Enhanced network scanner with proper port number handling
 
-# Get your network interface and IP range
+# Get network info
 interface=$(ip route | awk '/default/ {print $5}')
 ip_range=$(ip -o -f inet addr show | awk '/scope global/ {print $4}' | head -n1)
 
 echo "Scanning network on interface $interface (range: $ip_range)"
 echo "----------------------------------------"
 
-# Use nmap for scanning (install if needed: sudo apt install nmap)
+# Scan hosts
 nmap -sn $ip_range | awk '/Nmap scan/ {print $5, $6}' | while read -r ip host; do
     echo "├── $ip ($host)"
-    
-    # Scan common ports
-    ports=$(nmap -Pn -p- --min-rate=1000 -T4 $ip | awk '/^[0-9]+\/tcp/ {print $1}')
-    if [ -n "$ports" ]; then
-        echo "│   ├── Open ports:"
-        for port in $ports; do
-            service=$(grep "^$port/" /etc/services | awk '{print $1}')
-            echo "│   │   ├── $port ($service)"
-        done
-    else
-        echo "│   └── No open ports detected"
-    fi
-    
+
+    # Scan common ports with service detection (-sV)
+    # Using -F for fast scan (100 most common ports) and -T3 for normal timing
+    nmap -T3 -F -sV --min-rate=100 $ip | awk -v ip="$ip" '
+    /^[0-9]+\/tcp/ {
+        port = $1;
+        sub("/tcp", "", port);
+        service = $3;
+        for (i=4; i<=NF; i++) service = service " " $i;
+
+        # Only show ports below 10000 or known services
+        if (port < 10000 || service != "unknown") {
+            printf("│   ├── %s/tcp (%s)\n", port, service);
+        }
+    }
+    ' | sort -n
+
 done
+
+echo "----------------------------------------"
+echo "Scan completed"
